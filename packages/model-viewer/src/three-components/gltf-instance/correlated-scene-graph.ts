@@ -82,7 +82,7 @@ export class CorrelatedSceneGraph {
       // specified in the source glTF. In this case we append a default
       // material to allow this to be operated upon.
       if (threeMaterial instanceof Material &&
-          associations.get(threeMaterial) == null) {
+          associations.get(threeMaterial)!.materials == null) {
         if (defaultReference.index < 0) {
           if (gltf.materials == null) {
             gltf.materials = [];
