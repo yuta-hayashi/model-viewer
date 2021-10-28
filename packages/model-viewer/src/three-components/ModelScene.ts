@@ -17,6 +17,7 @@ import {AnimationAction, AnimationClip, AnimationMixer, Box3, Camera, Event as T
 import {CSS2DRenderer} from 'three/examples/jsm/renderers/CSS2DRenderer';
 
 import ModelViewerElementBase, {$renderer, RendererInterface} from '../model-viewer-base.js';
+import {ModelViewerElement} from '../model-viewer.js';
 import {resolveDpr} from '../utilities.js';
 
 import {Damper, SETTLING_TIME} from './Damper.js';
@@ -56,6 +57,7 @@ const normalWorld = new Vector3();
 
 const raycaster = new Raycaster();
 const vector3 = new Vector3();
+const ndc = new Vector2();
 
 /**
  * A THREE.Scene object that takes a Model and CanvasHTMLElement and
@@ -63,15 +65,15 @@ const vector3 = new Vector3();
  * Provides lights and cameras to be used in a renderer.
  */
 export class ModelScene extends Scene {
-  public element: ModelViewerElementBase;
+  public element: ModelViewerElement;
   public canvas: HTMLCanvasElement;
   public context: CanvasRenderingContext2D|ImageBitmapRenderingContext|null =
       null;
   public annotationRenderer = new CSS2DRenderer();
+  public schemaElement = document.createElement('script');
   public width = 1;
   public height = 1;
   public aspect = 1;
-  public isDirty = false;
   public renderCount = 0;
   public externalRenderer: RendererInterface|null = null;
 
@@ -98,6 +100,8 @@ export class ModelScene extends Scene {
   public canScale = true;
   public tightBounds = false;
 
+  private isDirty = false;
+
   private goalTarget = new Vector3();
   private targetDamperX = new Damper();
   private targetDamperY = new Damper();
@@ -114,7 +118,7 @@ export class ModelScene extends Scene {
 
     this.name = 'ModelScene';
 
-    this.element = element;
+    this.element = element as ModelViewerElement;
     this.canvas = canvas;
 
     // These default camera values are never used, as they are reset once the
@@ -139,6 +143,8 @@ export class ModelScene extends Scene {
     style.position = 'absolute';
     style.top = '0';
     this.element.shadowRoot!.querySelector('.default')!.appendChild(domElement);
+
+    this.schemaElement.setAttribute('type', 'application/ld+json');
   }
 
   /**
@@ -153,6 +159,18 @@ export class ModelScene extends Scene {
 
   getCamera(): Camera {
     return this.xrCamera != null ? this.xrCamera : this.camera;
+  }
+
+  queueRender() {
+    this.isDirty = true;
+  }
+
+  shouldRender() {
+    return this.isDirty;
+  }
+
+  hasRendered() {
+    this.isDirty = false;
   }
 
   /**
@@ -262,7 +280,7 @@ export class ModelScene extends Scene {
 
   reset() {
     this.url = null;
-    this.isDirty = true;
+    this.queueRender();
     if (this.shadow != null) {
       this.shadow.setIntensity(0);
     }
@@ -308,7 +326,7 @@ export class ModelScene extends Scene {
       this.externalRenderer.resize(width * dpr, height * dpr);
     }
 
-    this.isDirty = true;
+    this.queueRender();
   }
 
   updateBoundingBox() {
@@ -372,6 +390,20 @@ export class ModelScene extends Scene {
     this.framedFieldOfView = 2 * Math.atan(vertical) * 180 / Math.PI;
   }
 
+  getNDC(clientX: number, clientY: number): Vector2 {
+    if (this.xrCamera != null) {
+      ndc.set(clientX / window.screen.width, clientY / window.screen.height);
+    } else {
+      const rect = this.element.getBoundingClientRect();
+      ndc.set(
+          (clientX - rect.x) / this.width, (clientY - rect.y) / this.height);
+    }
+
+    ndc.multiplyScalar(2).subScalar(1);
+    ndc.y *= -1;
+    return ndc;
+  }
+
   /**
    * Returns the size of the corresponding canvas element.
    */
@@ -425,7 +457,7 @@ export class ModelScene extends Scene {
       this.target.position.set(x, y, z);
       this.target.updateMatrixWorld();
       this.setShadowRotation(this.yaw);
-      this.isDirty = true;
+      this.queueRender();
     }
   }
 
@@ -445,7 +477,7 @@ export class ModelScene extends Scene {
     this.rotation.y = radiansY;
     this.updateMatrixWorld(true);
     this.setShadowRotation(radiansY);
-    this.isDirty = true;
+    this.queueRender();
   }
 
   get yaw(): number {
@@ -714,5 +746,40 @@ export class ModelScene extends Scene {
     this.forHotspots((hotspot) => {
       hotspot.visible = visible;
     });
+  }
+
+  updateSchema(src: string|null) {
+    const {schemaElement, element} = this;
+    const {alt, poster, iosSrc} = element;
+    if (src != null) {
+      const encoding = [{
+        '@type': 'MediaObject',
+        contentUrl: src,
+        encodingFormat: src.split('.').pop()?.toLowerCase() === 'gltf' ?
+            'model/gltf+json' :
+            'model/gltf-binary'
+      }];
+
+      if (iosSrc) {
+        encoding.push({
+          '@type': 'MediaObject',
+          contentUrl: iosSrc,
+          encodingFormat: 'model/vnd.usdz+zip'
+        });
+      }
+
+      const structuredData = {
+        '@context': 'http://schema.org/',
+        '@type': '3DModel',
+        image: poster ?? undefined,
+        name: alt ?? undefined,
+        encoding
+      };
+
+      schemaElement.textContent = JSON.stringify(structuredData);
+      document.head.appendChild(schemaElement);
+    } else if (schemaElement.parentElement != null) {
+      schemaElement.parentElement.removeChild(schemaElement);
+    }
   }
 }
