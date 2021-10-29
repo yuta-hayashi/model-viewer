@@ -153,11 +153,12 @@ suite('scene-graph/model', () => {
               //   for (let i = 0; i < depth; ++i) {
               //     indent += ' ';
               //   }
-              //   const assoc = threeGLTF.parser.associations.get(node) as
-              //       GLTFReferenceWithPrimitive;
+              //   const assoc = threeGLTF.parser.associations.get(node) as (
+              //                     GLTFReference & {primitives: any});
               //   console.log(
               //       indent + 'Node: ' + node.name +
-              //       ` nodes: ${assoc?.nodes}, meshes${assoc?.meshes} prim: ${
+              //       ` nodes: ${assoc?.nodes}, meshes: ${assoc?.meshes} prim:
+              //       ${
               //           assoc?.primitives}`);
               //   if (node.children.length > 0) {
               //     indent += '|';
