@@ -19,19 +19,19 @@ import {CorrelatedSceneGraph, GLTFElementToThreeObjectMap, ThreeObjectSet, UserD
 import {GLTF, GLTFElement, Scene} from '../../three-components/gltf-instance/gltf-2.0.js';
 
 import {Model as ModelInterface} from './api.js';
-import {Material} from './material.js';
+import {$setActive, Material} from './material.js';
 import {$primitives, $threeNode, MVMesh, MVNode, MVPrimitive} from './nodes/primitive-node.js';
 
 
 
 export const $materials = Symbol('materials');
+const $hierarchy = Symbol('hierarchy');
+const $roots = Symbol('roots');
 export const $primitivesList = Symbol('primitives');
 export const $loadVariant = Symbol('loadVariant');
 export const $correlatedSceneGraph = Symbol('correlatedSceneGraph');
 export const $prepareVariantsForExport = Symbol('prepareVariantsForExport');
 export const $switchVariant = Symbol('switchVariant');
-export const $roots = Symbol('roots');
-export const $hierarchy = Symbol('hierarchy');
 export const $threeScene = Symbol('threeScene');
 export const $materialsFromPoint = Symbol('materialsFromPoint');
 export const $materialFromPoint = Symbol('materialFromPoint');
@@ -63,10 +63,11 @@ export class LazyLoader {
  */
 export class Model implements ModelInterface {
   private[$materials] = new Array<Material>();
-  private[$primitivesList] = new Array<MVPrimitive>();
-  private[$roots] = new Array<MVNode>();
-  private[$hierarchy] = new Array<MVNode>();
+  private[$hierarchy] = new Array<Node>();
+  private[$roots] = new Array<Node>();
+  private[$primitivesList] = new Array<PrimitiveNode>();
   private[$threeScene]: Object3D|Group;
+
   constructor(
       sceneIndex: number, correlatedSceneGraph: CorrelatedSceneGraph,
       onUpdate: () => void = () => {}) {
@@ -83,8 +84,8 @@ export class Model implements ModelInterface {
           gltfElementMap.get(material) as Set<MeshStandardMaterial>;
 
       if (correlatedMaterial != null) {
-        this[$materials].push(
-            new Material(onUpdate, gltf, material, correlatedMaterial));
+        this[$materials].push(new Material(
+            onUpdate, gltf, material, i, true, correlatedMaterial));
       } else {
         const elementArray = gltf['materials'] || [];
         const gltfMaterialDef = elementArray[i];
@@ -110,6 +111,8 @@ export class Model implements ModelInterface {
             onUpdate,
             gltf,
             gltfMaterialDef,
+            i,
+            false,
             correlatedMaterial,
             new LazyLoader(
                 gltf, gltfElementMap, gltfMaterialDef, materialLoadCallback)));
@@ -258,7 +261,16 @@ export class Model implements ModelInterface {
     for (const primitive of this[$primitivesList]) {
       promises.push(primitive.enableVariant(variantName));
     }
+
     await Promise.all(promises);
+
+    for (const material of this.materials) {
+      material[$setActive](false);
+    }
+    // Marks the materials that are now in use after the variant switch.
+    for (const primitive of this[$primitivesList]) {
+      this.materials[primitive.getActiveMaterial().index][$setActive](true);
+    }
   }
 
   async[$prepareVariantsForExport]() {

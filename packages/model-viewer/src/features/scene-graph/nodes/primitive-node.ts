@@ -63,13 +63,18 @@ export class MVMesh {
   }
 }
 
+export interface VariantMapping {
+  material: Material;
+  materialIndex: number;
+}
+
 // Represents a primitive in a glTF mesh.
 export class MVPrimitive {
   private[$threeMesh]: Mesh;
   // Maps glTF material index number to a material that this primitive supports.
   private[$materials] = new Map<number, Material>();
   // Maps variant name to material index.
-  private[$variantInfo]: Map<string, {material: Material, index: number}>;
+  private[$variantInfo]: Map<string, VariantMapping>;
   private[$initialMaterialIdx]: number;
   private[$activeMaterialIdx]: number;
 
@@ -125,8 +130,7 @@ export class MVPrimitive {
         const variantNames = extensions['KHR_materials_variants'].variants;
         // Provides definition now that we know there are variants to
         // support.
-        this[$variantInfo] =
-            new Map<string, {material: Material, index: number}>();
+        this[$variantInfo] = new Map<string, VariantMapping>();
         for (const mapping of variantsExtension.mappings) {
           // Maps variant indices to Materials.
           this[$materials].set(mapping.material, mvMaterials[mapping.material]);
@@ -134,7 +138,7 @@ export class MVPrimitive {
             const {name} = variantNames[variant];
             this[$variantInfo].set(name, {
               material: mvMaterials[mapping.material],
-              index: mapping.material
+              materialIndex: mapping.material
             });
           }
         }
@@ -168,7 +172,7 @@ export class MVPrimitive {
     if (this[$variantInfo] != null) {
       const material = this[$variantInfo].get(name);
       if (material != null) {
-        return this.setActiveMaterial(material.index);
+        return this.setActiveMaterial(material.materialIndex);
       }
     }
     return null;
