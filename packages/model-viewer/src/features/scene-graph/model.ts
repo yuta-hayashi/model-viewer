@@ -25,7 +25,7 @@ import {$primitives, $threeNode, MVMesh, MVNode, MVPrimitive} from './nodes/prim
 
 
 export const $materials = Symbol('materials');
-const $hierarchy = Symbol('hierarchy');
+export const $hierarchy = Symbol('hierarchy');
 const $roots = Symbol('roots');
 export const $primitivesList = Symbol('primitives');
 export const $loadVariant = Symbol('loadVariant');
@@ -63,9 +63,9 @@ export class LazyLoader {
  */
 export class Model implements ModelInterface {
   private[$materials] = new Array<Material>();
-  private[$hierarchy] = new Array<Node>();
-  private[$roots] = new Array<Node>();
-  private[$primitivesList] = new Array<PrimitiveNode>();
+  private[$hierarchy] = new Array<MVNode>();
+  private[$roots] = new Array<MVNode>();
+  private[$primitivesList] = new Array<MVPrimitive>();
   private[$threeScene]: Object3D|Group;
 
   constructor(
