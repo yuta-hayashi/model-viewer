@@ -15,7 +15,6 @@
  *
  */
 
-import '@material/mwc-dialog';
 import '@material/mwc-textfield';
 
 import {Button} from '@material/mwc-button';
