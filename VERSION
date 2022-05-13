@@ -1,0 +1,11 @@
+commit 48792d93978e538b79183092ce6db09a6a21b0c4
+Author: Miles Green <53870482+milesgreen@users.noreply.github.com>
+Date:   Fri May 13 23:27:07 2022 +0100
+
+    Support extended AR QuickLook parameters when auto generating USDZ blob (#3434)
+    
+    * replicate src hash to usdz blob url
+    
+    * fixed auto usdz params test case
+    
+    * expanded auto usdz test case
